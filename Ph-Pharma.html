@@ -1,0 +1,419 @@
+
+<!doctype html>
+<!--
+Analytics Dashboard - Single HTML deliverable
+Matches: Designer Evaluation Tasks (Analytics Dashboard)
+Includes: Tailwind CDN, Chart.js, accessibility, keyboard nav, sticky table header, zebra rows, truncation+tooltips, pagination mock, tabs, dark mode, chart states (loading/empty/error), responsive layout (1440px & 375px), README tokens (below).
+
+README (tokens & specs):
+- Color tokens (CSS variables):
+  --primary-500: #6D28D9;
+  --primary-400: #7C3AED;
+  --accent-500: #8B5CF6;
+  --muted-100: #F3F4F6;
+  --muted-200: #E5E7EB;
+  --success-500: #10B981;
+  --danger-500: #EF4444;
+- Spacing scale: 4px base (sizes: 4,8,12,16,24,32,48)
+- Type ramp: h1=24px, h2=20px, body=14-16px
+- Tailwind via CDN (no build). Minor custom CSS included below.
+- Accessibility: focus-visible rings, aria-current for tabs, scope on table headers, keyboard nav for tabs & pagination.
+-->
+<html lang="en" class="bg-gray-50">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Analytics Dashboard - Deliverable</title>
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Tailwind config override (runtime): extend font sizes and default colors via CSS variables usage
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              400: 'var(--primary-400)',
+              500: 'var(--primary-500)'
+            },
+            accent: 'var(--accent-500)'
+          },
+          spacing: {
+            '7': '1.75rem'
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root{
+      --primary-500:#6D28D9;
+      --primary-400:#7C3AED;
+      --accent-500:#8B5CF6;
+      --muted-100:#F3F4F6;
+      --muted-200:#E5E7EB;
+      --success-500:#10B981;
+      --danger-500:#EF4444;
+    }
+    /* Custom small styles */
+    .card { background: white; border-radius: .75rem; box-shadow: 0 1px 3px rgba(15,23,42,0.04); }
+    .dark .card { background: #0f1724; color: #e6eef8; box-shadow: none; }
+    .truncate-ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* Sticky table header */
+    thead th { position: sticky; top: 0; background: inherit; z-index: 20; }
+    /* focus visible */
+    :focus-visible { outline: 3px solid rgba(99,102,241,0.35); outline-offset: 2px; border-radius: 6px; }
+    /* small helper for chart skeleton */
+    .skeleton { background: linear-gradient(90deg,#f3f4f6 25%, #e9e8ff 50%, #f3f4f6 75%); background-size: 200% 100%; animation: shine 1.2s linear infinite; }
+    @keyframes shine { to { background-position: -200% 0; } }
+    /* responsive chart container heights */
+    .chart-area { height: 280px; }
+    @media (max-width: 640px) { .chart-area { height: 220px; } }
+  </style>
+</head>
+<body class="font-sans text-gray-800 antialiased">
+  <div id="app" class="min-h-screen flex">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white card p-6 hidden md:block">
+      <div class="flex items-center gap-3 mb-8">
+        <div class="w-10 h-10 rounded-md" style="background:linear-gradient(135deg,var(--primary-400),var(--primary-500));"></div>
+        <div>
+          <h1 class="font-semibold text-lg">Market Analysis</h1>
+          <p class="text-xs text-gray-500">Dashboard</p>
+        </div>
+      </div>
+      <nav aria-label="Main Menu" class="space-y-2">
+        <button class="w-full text-left px-3 py-2 rounded-lg flex items-center gap-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white" id="tab-overview" data-tab="overview" aria-current="page">Overview</button>
+        <button class="w-full text-left px-3 py-2 rounded-lg flex items-center gap-3 hover:bg-gray-100" id="tab-sales" data-tab="sales">Sales</button>
+        <button class="w-full text-left px-3 py-2 rounded-lg flex items-center gap-3 hover:bg-gray-100" id="tab-operations" data-tab="operations">Operations</button>
+      </nav>
+
+      <div class="mt-10 text-sm text-gray-500">
+        <button id="dark-toggle" class="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100" aria-pressed="false">
+          <svg id="dark-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m8.66-9H21M3 12H4.34M18.36 6.64l-.7.71M6.34 17.66l-.7.71M17.66 17.66l-.7-.71M6.34 6.34l-.7-.71" /></svg>
+          <span>Dark Mode</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="flex-1 p-6">
+      <!-- Top bar (mobile: show hamburger) -->
+      <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-4">
+          <button id="hamburger" class="md:hidden p-2 rounded-md" aria-label="Open menu">☰</button>
+          <div class="relative w-full max-w-xl">
+            <input aria-label="Search" class="w-full border border-transparent rounded-full px-4 py-2 shadow-sm focus:ring-2 focus:ring-indigo-300" placeholder="Search something here" />
+          </div>
+        </div>
+        <div class="flex items-center gap-4">
+          <div class="text-right hidden sm:block">
+            <div class="text-xs text-gray-500">Welcome back,</div>
+            <div class="font-medium">Moath Hamdan</div>
+          </div>
+          <img src="https://i.pravatar.cc/40" alt="avatar" class="w-10 h-10 rounded-full" />
+        </div>
+      </div>
+
+      <!-- KPI Row -->
+      <section aria-labelledby="kpi-heading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <h2 id="kpi-heading" class="sr-only">Key performance indicators</h2>
+
+        <!-- Revenue -->
+        <div class="card p-4">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="text-sm text-gray-500">Revenue</p>
+              <div class="text-xl font-semibold">$50,530.00 <span class="text-sm text-gray-400">(JOD)</span></div>
+              <div class="text-xs text-green-600">20% increase compared to last week</div>
+            </div>
+            <div class="w-24 h-12" aria-hidden="true">
+              <canvas id="spark1"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Users -->
+        <div class="card p-4">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="text-sm text-gray-500">Active Users</p>
+              <div class="text-xl font-semibold">2189 <span class="text-sm text-gray-400">User</span></div>
+              <div class="text-xs text-red-500">10% decrease compared to last week</div>
+            </div>
+            <div class="w-24 h-12" aria-hidden="true">
+              <canvas id="spark2"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Conversion Rate -->
+        <div class="card p-4">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="text-sm text-gray-500">Conversion Rate</p>
+              <div class="text-xl font-semibold">19 <span class="text-sm text-gray-400">CR</span></div>
+              <div class="text-xs text-green-600">10% decrease compared to last week</div>
+            </div>
+            <div class="w-24 h-12" aria-hidden="true">
+              <canvas id="spark3"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Orders Completed -->
+        <div class="card p-4">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="text-sm text-gray-500">Orders Completed</p>
+              <div class="text-xl font-semibold">1000 <span class="text-sm text-gray-400">Orders</span></div>
+              <div class="text-xs text-red-500">10% decrease compared to last week</div>
+            </div>
+            <div class="w-24 h-12" aria-hidden="true">
+              <canvas id="spark4"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <!-- Left column: big chart + table -->
+        <div class="lg:col-span-2 space-y-6">
+          <!-- Spending statistics card -->
+          <div class="card p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-medium">Spending Statistics</h3>
+              <div class="flex items-center gap-3">
+                <button class="px-2 py-1 text-sm border rounded" id="ts-loading">Loading</button>
+                <button class="px-2 py-1 text-sm border rounded" id="ts-empty">Empty</button>
+                <button class="px-2 py-1 text-sm border rounded" id="ts-error">Error</button>
+                <div class="text-sm text-gray-500">2025</div>
+              </div>
+            </div>
+            <div class="chart-area relative">
+              <!-- loading skeleton -->
+              <div id="ts-skeleton" class="absolute inset-0 rounded-md skeleton"></div>
+              <canvas id="timeseriesChart" class="relative"></canvas>
+            </div>
+          </div>
+
+          <!-- Transaction history table -->
+          <div class="card p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-medium">Transaction History</h3>
+              <div class="text-sm text-gray-500">Jan 1 - Feb 1, 2022</div>
+            </div>
+            <div class="overflow-auto">
+              <table class="min-w-full text-left divide-y" role="table" aria-label="Transaction history table">
+                <thead class="bg-gray-50 dark:bg-gray-800">
+                  <tr>
+                    <th scope="col" class="px-4 py-3 text-xs text-gray-500">Customer Name</th>
+                    <th scope="col" class="px-4 py-3 text-xs text-gray-500">Order ID</th>
+                    <th scope="col" class="px-4 py-3 text-xs text-gray-500">Amount</th>
+                    <th scope="col" class="px-4 py-3 text-xs text-gray-500">Status</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-transparent divide-y">
+                  <!-- Row 1 -->
+                  <tr class="hover:bg-gray-50 dark:hover:bg-gray-900">
+                    <td class="px-4 py-3 truncate-ellipsis" title="Bank Transfer Payment from ACME Corp">Bank Transfer</td>
+                    <td class="px-4 py-3 truncate-ellipsis" title="#21342">#21342</td>
+                    <td class="px-4 py-3">$2,000.00</td>
+                    <td class="px-4 py-3"><span class="px-2 py-1 rounded text-sm" style="background:#ECFCCB;color:#166534;">Complete</span></td>
+                  </tr>
+                  <!-- Row 2 -->
+                  <tr class="hover:bg-gray-50 dark:hover:bg-gray-900 bg-gray-50">
+                    <td class="px-4 py-3 truncate-ellipsis" title="Paypal Account Payment">Paypal Account</td>
+                    <td class="px-4 py-3 truncate-ellipsis" title="#21342">#21342</td>
+                    <td class="px-4 py-3">$2,000.00</td>
+                    <td class="px-4 py-3"><span class="px-2 py-1 rounded text-sm" style="background:#FEF3C7;color:#92400E;">Pending</span></td>
+                  </tr>
+                  <!-- Row 3 -->
+                  <tr class="hover:bg-gray-50 dark:hover:bg-gray-900">
+                    <td class="px-4 py-3 truncate-ellipsis" title="Figma Marketplace Purchase">Figma</td>
+                    <td class="px-4 py-3 truncate-ellipsis" title="#21342">#21342</td>
+                    <td class="px-4 py-3">$2,000.00</td>
+                    <td class="px-4 py-3"><span class="px-2 py-1 rounded text-sm" style="background:#FEE2E2;color:#991B1B;">Onhold</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Pagination mock -->
+            <nav class="flex items-center justify-end mt-4 space-x-2" aria-label="Table pagination">
+              <a href="#" class="px-3 py-1 rounded-md text-sm bg-indigo-50" id="page-1">1</a>
+              <a href="#" class="px-3 py-1 rounded-md text-sm" id="page-2">2</a>
+              <a href="#" class="px-3 py-1 rounded-md text-sm" id="page-3">3</a>
+              <a href="#" class="px-3 py-1 rounded-md text-sm" id="page-next">Next ›</a>
+            </nav>
+          </div>
+        </div>
+
+        <!-- Right column: balance and categorical chart -->
+        <aside class="space-y-6">
+          <div class="card p-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm text-gray-500">Balance</p>
+                <div class="text-2xl font-semibold">$120,435.00 <span class="text-sm text-gray-400">(JOD)</span></div>
+                <div class="text-xs text-gray-500">From Jan 01, 2022 to Jan 31, 2022</div>
+              </div>
+              <div class="space-y-2">
+                <button class="px-3 py-2 rounded-md" style="background:linear-gradient(90deg,var(--primary-400),var(--primary-500)); color:white;">Top Up</button>
+                <button class="px-3 py-2 rounded-md border">Transfer</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h4 class="font-medium">Categorical comparison</h4>
+              <div class="text-sm text-gray-500">2025</div>
+            </div>
+            <div class="chart-area relative">
+              <canvas id="barChart"></canvas>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <footer class="text-sm text-gray-500 mt-6">Created for Designer Evaluation Task — Analytics Dashboard</footer>
+    </main>
+  </div>
+
+  <script>
+    // --- Dark mode toggle (persist) ---
+    const htmlEl = document.documentElement;
+    const darkToggle = document.getElementById('dark-toggle');
+    function setDark(val) {
+      if(val) { htmlEl.classList.add('dark'); localStorage.setItem('theme','dark'); darkToggle.setAttribute('aria-pressed','true'); }
+      else { htmlEl.classList.remove('dark'); localStorage.setItem('theme','light'); darkToggle.setAttribute('aria-pressed','false'); }
+    }
+    // init from storage or prefers
+    const stored = localStorage.getItem('theme');
+    if(stored === 'dark') setDark(true);
+    else if(stored === 'light') setDark(false);
+    else if(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) setDark(true);
+    darkToggle.addEventListener('click', () => setDark(!document.documentElement.classList.contains('dark')));
+
+    // --- Tabs keyboard nav & aria-current ---
+    const tabs = Array.from(document.querySelectorAll('[data-tab]'));
+    function setActiveTab(name) {
+      tabs.forEach(t => {
+        if(t.dataset.tab === name) { t.setAttribute('aria-current','page'); t.classList.add('bg-gradient-to-r','from-indigo-600','to-purple-600','text-white'); }
+        else { t.removeAttribute('aria-current'); t.classList.remove('bg-gradient-to-r','from-indigo-600','to-purple-600','text-white'); }
+      });
+    }
+    tabs.forEach(t => {
+      t.addEventListener('click', () => setActiveTab(t.dataset.tab));
+      t.addEventListener('keydown', (e) => {
+        const idx = tabs.indexOf(t);
+        if(e.key === 'ArrowRight') tabs[(idx+1)%tabs.length].focus();
+        if(e.key === 'ArrowLeft') tabs[(idx-1+tabs.length)%tabs.length].focus();
+      });
+    });
+    setActiveTab('overview');
+
+    // --- Sparklines (mini charts) ---
+    function drawSpark(id, data, color) {
+      const ctx = document.getElementById(id).getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: { labels: data.map((_,i)=>i), datasets:[{data, borderColor: color, borderWidth:2, fill:false, tension:0.4, pointRadius:0}]},
+        options: { responsive:true, maintainAspectRatio:false, plugins: { legend:{display:false}}, scales:{x:{display:false}, y:{display:false}} }
+      });
+    }
+    drawSpark('spark1',[150,200,170,250,220,300], 'rgba(99,102,241,0.9)');
+    drawSpark('spark2',[120,110,100,90,80,70], 'rgba(239,68,68,0.9)');
+    drawSpark('spark3',[10,11,9,12,10,13], 'rgba(16,185,129,0.9)');
+    drawSpark('spark4',[90,80,120,100,95,110], 'rgba(139,92,246,0.9)');
+
+    // --- Chart.js main charts ---
+    // Timeseries chart with loading/empty/error states
+    const tsCtx = document.getElementById('timeseriesChart').getContext('2d');
+    let tsChart;
+    function createTimeseries(data) {
+      if(tsChart) tsChart.destroy();
+      tsChart = new Chart(tsCtx, {
+        type: 'line',
+        data: { labels: data.labels, datasets:[
+          { label: 'Expenses', data: data.expenses, borderColor: 'rgba(139,92,246,0.95)', backgroundColor: 'rgba(139,92,246,0.08)', tension:0.35, fill:true }
+        ]},
+        options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{grid:{display:false}}, y:{beginAtZero:false}} }
+      });
+    }
+
+    // Bar chart
+    const barCtx = document.getElementById('barChart').getContext('2d');
+    const barChart = new Chart(barCtx, {
+      type: 'bar',
+      data: {
+        labels:['Aug','May','Jun'],
+        datasets:[{label:'Category', data:[12000,5000,12500], backgroundColor:['rgba(139,92,246,0.9)','rgba(236,72,153,0.6)','rgba(99,102,241,0.9)']}]
+      },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} }
+    });
+
+    // Simulate loading then show data
+    const tsSkeleton = document.getElementById('ts-skeleton');
+    function showLoading() { tsSkeleton.style.display='block'; if(tsChart) tsChart.canvas.style.filter='blur(2px)'; }
+    function hideLoading() { tsSkeleton.style.display='none'; if(tsChart) tsChart.canvas.style.filter='none'; }
+    function showEmpty() {
+      hideLoading();
+      if(tsChart) tsChart.destroy();
+      tsCtx.clearRect(0,0,tsCtx.canvas.width, tsCtx.canvas.height);
+      tsCtx.font = '16px sans-serif'; tsCtx.fillStyle = '#9CA3AF';
+      tsCtx.fillText('No data available', 20, 40);
+    }
+    function showError() {
+      hideLoading();
+      if(tsChart) tsChart.destroy();
+      tsCtx.clearRect(0,0,tsCtx.canvas.width, tsCtx.canvas.height);
+      tsCtx.font = '16px sans-serif'; tsCtx.fillStyle = '#EF4444';
+      tsCtx.fillText('Failed to load data. Retry', 20, 40);
+    }
+
+    // Buttons to trigger states
+    document.getElementById('ts-loading').addEventListener('click', ()=>{ showLoading(); setTimeout(()=>{ createTimeseries(mockData()); hideLoading(); },1200); });
+    document.getElementById('ts-empty').addEventListener('click', ()=>{ showEmpty(); });
+    document.getElementById('ts-error').addEventListener('click', ()=>{ showError(); });
+
+    // initial load
+    showLoading();
+    setTimeout(()=>{ createTimeseries(mockData()); hideLoading(); }, 1000);
+
+    function mockData(){
+      return {
+        labels: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+        expenses: [9000,7000,6000,15000,8000,12000,7000,13000,11000,6000,9000,8000]
+      };
+    }
+
+    // --- Pagination keyboard nav ---
+    const pages = ['page-1','page-2','page-3','page-next'].map(id=>document.getElementById(id));
+    pages.forEach((p, idx) => {
+      p.setAttribute('tabindex','0');
+      p.addEventListener('keydown', (e)=>{
+        if(e.key === 'ArrowRight') pages[(idx+1)%pages.length].focus();
+        if(e.key === 'ArrowLeft') pages[(idx-1+pages.length)%pages.length].focus();
+      });
+    });
+
+    // --- Mobile hamburger toggling sidebar ---
+    const hamburger = document.getElementById('hamburger');
+    hamburger.addEventListener('click', ()=>{
+      const aside = document.querySelector('aside');
+      aside.classList.toggle('hidden');
+    });
+
+    // Accessibility: ensure table headers have scope (already set in HTML). Tooltips via title attribute (present).
+    // End of script
+  </script>
+</body>
+</html>
