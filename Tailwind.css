@@ -1,0 +1,132 @@
+/*
+  ph-pharma.tailwind.css
+  Extracted Tailwind + custom CSS from Ph-Pharma.html
+  ---------------------------------------------
+  Usage:
+  1) If you use Tailwind CLI / build pipeline: place the tailwind.config.js (snippet below) at project root,
+     then import this file from your main CSS entry (e.g. styles.css) or use it directly as the entry.
+  2) This file contains the Tailwind layer directives and the small custom styles that were inline in the HTML.
+
+  NOTE: This file assumes you will run a Tailwind build (postcss/tailwind CLI, Vite, webpack, etc.).
+*/
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ------------------------------------------------------------------
+   Design tokens (copied from the HTML <style> :root)
+   ------------------------------------------------------------------ */
+:root{
+  --primary-500:#6D28D9;
+  --primary-400:#7C3AED;
+  --accent-500:#8B5CF6;
+  --muted-100:#F3F4F6;
+  --muted-200:#E5E7EB;
+  --success-500:#10B981;
+  --danger-500:#EF4444;
+}
+
+/* ------------------------------------------------------------------
+   Small custom utilities / components
+   These complement Tailwind classes used in the HTML.
+   ------------------------------------------------------------------ */
+
+/* Card base (used for many panels) */
+.card {
+  @apply bg-white rounded-[0.75rem] shadow-sm; /* shadow-sm matches a subtle shadow */
+}
+
+/* Dark mode card adjustments */
+.dark .card {
+  background: #0f1724; /* deep navy */
+  color: #e6eef8;
+  box-shadow: none;
+}
+
+/* Truncation helper (same as used inline) */
+.truncate-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Sticky table header: keep header visible when scrolling */
+thead th {
+  position: sticky;
+  top: 0;
+  background: inherit; /* will pick background from thead */
+  z-index: 20;
+}
+
+/* Focus-visible outline for keyboard users */
+:focus-visible {
+  outline: 3px solid rgba(99,102,241,0.35);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Chart / skeleton shimmer used for loading states */
+.skeleton {
+  background: linear-gradient(90deg,#f3f4f6 25%, #e9e8ff 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  animation: tw-shine 1.2s linear infinite;
+}
+@keyframes tw-shine { to { background-position: -200% 0; } }
+
+/* Chart container height helpers (responsive) */
+.chart-area { height: 280px; }
+@media (max-width: 640px) { .chart-area { height: 220px; } }
+
+/* Small helper classes converted to Tailwind-style @apply examples */
+/* If you prefer, add these to a components file or convert into utility classes in tailwind.config.js */
+.btn-gradient {
+  @apply px-3 py-2 rounded-md; /* Use inline style for gradient background */
+}
+
+/* Example status badges -- kept as inline styles in HTML; you can create utilities if desired */
+
+/* ------------------------------------------------------------------
+  Recommended tailwind.config.js (put in project root). Replace your existing config or merge.
+  Save this as tailwind.config.js and run the Tailwind build.
+  ------------------------------------------------------------------ */
+/*
+module.exports = {
+  darkMode: 'class',
+  content: [
+    './**/*.html',
+    './src/**/*.{js,ts,jsx,tsx}',
+  ],
+  theme: {
+    extend: {
+      colors: {
+        primary: {
+          400: 'var(--primary-400)',
+          500: 'var(--primary-500)'
+        },
+        accent: 'var(--accent-500)'
+      },
+      spacing: {
+        '7': '1.75rem'
+      }
+    }
+  },
+  plugins: [],
+}
+*/
+
+/* ------------------------------------------------------------------
+  Optional: small utility examples you might want to register as components
+  in a CSS file (or via the `@layer components {}` block) so they can be
+  purged correctly by Tailwind in production builds.
+  ------------------------------------------------------------------ */
+@layer components {
+  .kpi-card {
+    @apply card p-4;
+  }
+  .table-pagination a {
+    @apply px-3 py-1 rounded-md text-sm;
+  }
+}
+
+/* End of file */
