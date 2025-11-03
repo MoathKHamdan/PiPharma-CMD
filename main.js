@@ -1,4 +1,4 @@
-/* ph-pharma.script.js
+/*
    Lightweight JavaScript for Ph-Pharma.html
    --------------------------------------------------
    This file contains vanilla JS utilities used by the HTML:
